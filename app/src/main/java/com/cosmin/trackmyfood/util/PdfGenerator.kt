@@ -1,23 +1,23 @@
 package com.cosmin.trackmyfood.util
 
-import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
-import android.os.Build
 import android.os.Environment
-import android.provider.MediaStore
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.widget.Toast
+import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import com.cosmin.trackmyfood.data.model.Meal
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,26 +72,20 @@ object PdfGenerator {
                 canvas.drawText("${index + 1}. ${meal.name} ($dateStr)", x, y, headerPaint)
                 y += 20f
 
-                // Draw image with software config, correct EXIF rotation, and aspect ratio
+                // Draw image with software config, correct EXIF rotation, and proportional scaling
                 if (!meal.imagePath.isNullOrBlank()) {
                     try {
                         val file = File(meal.imagePath)
                         if (file.exists()) {
-                            // 1. Decodificar con opciones optimizadas para evitar consumo excesivo de memoria
                             val options = BitmapFactory.Options().apply {
-                                inJustDecodeBounds = false
                                 inPreferredConfig = Bitmap.Config.ARGB_8888
                             }
                             var bmp = BitmapFactory.decodeFile(file.absolutePath, options)
-
                             if (bmp != null) {
-                                // 2. Corregir la orientación EXIF
                                 bmp = correctBitmapOrientation(file.absolutePath, bmp)
 
                                 val originalWidth = bmp.width.toFloat()
                                 val originalHeight = bmp.height.toFloat()
-
-                                // Dimensiones máximas permitidas en el PDF
                                 val maxWidth = 160f
                                 val maxHeight = 120f
 
@@ -102,7 +96,6 @@ object PdfGenerator {
                                     targetWidth = (originalWidth * maxHeight) / originalHeight
                                 }
 
-                                // 3. Usar Matrix y Paint con filtro para mantener la máxima nitidez vectorial en el PDF
                                 val matrix = Matrix().apply {
                                     val scaleX = targetWidth / originalWidth
                                     val scaleY = targetHeight / originalHeight
@@ -110,20 +103,17 @@ object PdfGenerator {
                                     postTranslate(x, y)
                                 }
 
-                                val paint = android.graphics.Paint().apply {
+                                val paint = Paint().apply {
                                     isAntiAlias = true
-                                    isFilterBitmap = true // Clave para que no se vea pixelada
+                                    isFilterBitmap = true
                                     isDither = true
                                 }
 
                                 canvas.drawBitmap(bmp, matrix, paint)
-
-                                // Actualizar la coordenada Y para los textos siguientes
                                 y += targetHeight + 15f
                             }
                         }
                     } catch (e: Exception) {
-                        // Opcional: imprime el error en Logcat si necesitas depurar
                         e.printStackTrace()
                     }
                 }
@@ -146,25 +136,29 @@ object PdfGenerator {
         val fileName = "TrackMyFood_Comidas_${System.currentTimeMillis()}.pdf"
 
         try {
-            val resolver = context.contentResolver
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                }
+            val pdfDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+            if (!pdfDir.exists()) pdfDir.mkdirs()
+            val file = File(pdfDir, fileName)
+            FileOutputStream(file).use { fos ->
+                pdfDocument.writeTo(fos)
+            }
+            pdfDocument.close()
+
+            // Open PDF automatically using FileProvider and ACTION_VIEW intent
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_ACTIVITY_NEW_TASK
             }
 
-            val uri = resolver.insert(MediaStore.Files.getContentUri("external"), contentValues)
-            if (uri != null) {
-                resolver.openOutputStream(uri)?.use { outputStream ->
-                    pdfDocument.writeTo(outputStream)
-                }
-                pdfDocument.close()
-                Toast.makeText(context, "PDF guardado en Descargas: $fileName", Toast.LENGTH_LONG).show()
-            } else {
-                pdfDocument.close()
-                Toast.makeText(context, "Error al guardar en Descargas", Toast.LENGTH_SHORT).show()
+            try {
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                Toast.makeText(context, "PDF guardado en: ${file.absolutePath}", Toast.LENGTH_LONG).show()
             }
         } catch (e: Exception) {
             pdfDocument.close()
