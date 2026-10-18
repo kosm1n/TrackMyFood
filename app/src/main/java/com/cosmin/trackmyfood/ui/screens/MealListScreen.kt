@@ -2,9 +2,11 @@ package com.cosmin.trackmyfood.ui.screens
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -42,7 +44,7 @@ fun MealListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Logged Meals (Most Recent)") },
+                title = { Text("Logged Meals", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -63,8 +65,8 @@ fun MealListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         }
@@ -73,6 +75,7 @@ fun MealListScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
@@ -81,12 +84,13 @@ fun MealListScreen(
                         imageVector = Icons.Default.Fastfood,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "No meals logged yet.",
                         fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -101,8 +105,9 @@ fun MealListScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(innerPadding)
-                    .padding(16.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(meals) { meal ->
@@ -123,7 +128,6 @@ fun MealItemCard(
     dateFormatter: SimpleDateFormat,
     onDelete: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
     val dateStr = dateFormatter.format(Date(meal.createdAt))
 
     // Load bitmap from imagePath if available
@@ -142,12 +146,14 @@ fun MealItemCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(3.dp)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -165,6 +171,7 @@ fun MealItemCard(
                     Text(
                         text = dateStr,
                         fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.outline
                     )
                 }
@@ -177,19 +184,21 @@ fun MealItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = meal.description,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (bitmap != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
+                        .height(180.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
@@ -199,20 +208,20 @@ fun MealItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = "Ingredients (${meal.ingredients.size}):",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.secondary
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             
-            // Show ingredients tags or comma separated
             val ingredientsText = meal.ingredients.joinToString(", ") { it.name }
             Text(
                 text = if (ingredientsText.isNotBlank()) ingredientsText else "None specified",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
